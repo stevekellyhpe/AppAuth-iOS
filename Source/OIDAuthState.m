@@ -462,6 +462,8 @@ static const NSUInteger kExpiryTimeTolerance = 60;
     // creates a list of pending actions, starting with this one
     _pendingActions = [NSMutableArray arrayWithObject:action];
   }
+    
+    __weak typeof(self) weakSelf = self;
 
   // refresh the tokens
   OIDTokenRequest *tokenRefreshRequest =
@@ -469,28 +471,31 @@ static const NSUInteger kExpiryTimeTolerance = 60;
   [OIDAuthorizationService performTokenRequest:tokenRefreshRequest
                                       callback:^(OIDTokenResponse *_Nullable response,
                                                  NSError *_Nullable error) {
+                                          
+    __strong typeof(weakSelf) strongSelf = weakSelf;
+                                          
     dispatch_async(dispatch_get_main_queue(), ^() {
       // update OIDAuthState based on response
       if (response) {
-        self->_needsTokenRefresh = NO;
+        strongSelf->_needsTokenRefresh = NO;
         [self updateWithTokenResponse:response error:nil];
       } else {
         if (error.domain == OIDOAuthTokenErrorDomain) {
-          self->_needsTokenRefresh = NO;
+          strongSelf->_needsTokenRefresh = NO;
           [self updateWithAuthorizationError:error];
         } else {
-          if ([self->_errorDelegate respondsToSelector:
+          if ([strongSelf->_errorDelegate respondsToSelector:
               @selector(authState:didEncounterTransientError:)]) {
-            [self->_errorDelegate authState:self didEncounterTransientError:error];
+            [strongSelf->_errorDelegate authState:self didEncounterTransientError:error];
           }
         }
       }
 
       // nil the pending queue and process everything that was queued up
       NSArray *actionsToProcess;
-      @synchronized(self->_pendingActionsSyncObject) {
-        actionsToProcess = self->_pendingActions;
-        self->_pendingActions = nil;
+      @synchronized(strongSelf->_pendingActionsSyncObject) {
+        actionsToProcess = strongSelf->_pendingActions;
+        strongSelf->_pendingActions = nil;
       }
       for (OIDAuthStateAction actionToProcess in actionsToProcess) {
         actionToProcess(self.accessToken, self.idToken, error);
