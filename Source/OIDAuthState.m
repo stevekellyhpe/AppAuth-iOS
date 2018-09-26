@@ -474,6 +474,8 @@ static const NSUInteger kExpiryTimeTolerance = 60;
                                           
     __strong typeof(weakSelf) strongSelf = weakSelf;
                                           
+    if (!strongSelf) { return; }
+                                          
     dispatch_async(dispatch_get_main_queue(), ^() {
       // update OIDAuthState based on response
       if (response) {
